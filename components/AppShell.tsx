@@ -15,6 +15,7 @@ import {
 } from "@mui/material";
 import Link from "next/link";
 import { Icon } from "@iconify/react";
+import { useRouter } from "next/navigation";
 
 type MenuItem = {
   id: string;
@@ -69,6 +70,7 @@ export default function AppShell({
   children: React.ReactNode;
   active: string;
 }) {
+  const router = useRouter();
   const [permissions, setPermissions] = useState<string[] | null>(null);
 
   useEffect(() => {
@@ -166,7 +168,7 @@ export default function AppShell({
         >
           <Stack direction="row" spacing={2} alignItems="center">
             <Typography fontSize={13}>Alex Davis</Typography>
-            <form action="/api/auth/logout" method="post" onSubmit={() => sessionStorage.removeItem("dna_permissions")}>
+            <form onSubmit={async (event) => { event.preventDefault(); await fetch("/api/auth/logout", { method: "POST" }); sessionStorage.removeItem("dna_permissions"); router.replace("/login"); router.refresh(); }}>
               <Button type="submit" size="small">
                 ออกจากระบบ
               </Button>

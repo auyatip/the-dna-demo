@@ -112,7 +112,7 @@ export default function AppShell({
         }}
       >
         <Typography className="font-display" fontWeight={700} fontSize={18}>
-          ● The DNA{" "}
+          ● DEMO TEST {" "}
           <Chip
             label="DEMO"
             size="small"

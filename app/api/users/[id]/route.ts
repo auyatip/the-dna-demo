@@ -15,12 +15,12 @@ export async function PATCH(
         { message: "At least one role is required" },
         { status: 400 },
       );
-    const target = await prisma.user.findUnique({ where: { id } });
+    const [target, selectedRoles] = await Promise.all([
+      prisma.user.findUnique({ where: { id }, select: { id: true, name: true, email: true, role: true, isActive: true } }),
+      prisma.role.findMany({ where: { id: { in: roleIds } }, select: { id: true, name: true, code: true } }),
+    ]);
     if (!target)
       return NextResponse.json({ message: "User not found" }, { status: 404 });
-    const selectedRoles = await prisma.role.findMany({
-      where: { id: { in: roleIds } },
-    });
     if (selectedRoles.length !== roleIds.length)
       return NextResponse.json(
         { message: "Invalid role selection" },
@@ -50,11 +50,7 @@ export async function PATCH(
           role: keepsAdmin ? "ADMIN" : "STAFF",
           ...(typeof isActive === "boolean" ? { isActive } : {}),
         },
-        include: {
-          userRoles: {
-            include: { role: { select: { id: true, name: true, code: true } } },
-          },
-        },
+        select: { id: true, name: true, email: true, role: true, isActive: true },
       });
     });
     return NextResponse.json({
@@ -63,7 +59,7 @@ export async function PATCH(
       email: updated.email,
       role: updated.role,
       isActive: updated.isActive,
-      roles: updated.userRoles.map((item) => item.role),
+      roles: selectedRoles,
     });
   } catch (error) {
     return NextResponse.json({ message: "Forbidden" }, { status: 403 });

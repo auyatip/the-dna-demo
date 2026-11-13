@@ -3,7 +3,7 @@ import "./globals.css";
 import Providers from "@/components/Providers";
 
 export const metadata: Metadata = {
-  title: "The DNA — ระบบจัดการนักเรียน",
+  title: "DEMO PERMISSION — ระบบจัดการนักเรียน",
   description: "ระบบจัดการข้อมูลนักเรียนและเอกสาร",
 };
 export default function RootLayout({

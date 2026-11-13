@@ -1,138 +1,19 @@
 "use client";
-import { useEffect, useState } from "react";
-import {
-  Alert,
-  Box,
-  Button,
-  Chip,
-  Container,
-  MenuItem,
-  Paper,
-  Select,
-  Snackbar,
-  Stack,
-  Typography,
-} from "@mui/material";
+import { useEffect, useMemo, useState } from "react";
+import { Alert, Avatar, Box, Button, Chip, Container, Dialog, DialogActions, DialogContent, DialogTitle, InputAdornment, MenuItem, Paper, Select, Snackbar, Stack, TextField, Typography } from "@mui/material";
+import { Icon } from "@iconify/react";
 import AppShell from "@/components/AppShell";
 type Role = { id: string; name: string; code: string };
-type User = {
-  id: string;
-  name: string;
-  email: string;
-  role: "ADMIN" | "STAFF";
-  isActive: boolean;
-  userRoles?: { role: Role }[];
-  roles?: Role[];
-};
+type User = { id: string; name: string; email: string; role: "ADMIN" | "STAFF"; isActive: boolean; userRoles?: { role: Role }[]; roles?: Role[] };
+const empty = { name: "", email: "", password: "", role: "STAFF" };
 export default function UsersPage() {
-  const [users, setUsers] = useState<User[]>([]);
-  const [roles, setRoles] = useState<Role[]>([]);
-  const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
-  useEffect(() => {
-    Promise.all([fetch("/api/users"), fetch("/api/roles")])
-      .then(async ([usersResponse, rolesResponse]) => {
-        if (!usersResponse.ok || !rolesResponse.ok)
-          throw new Error("คุณไม่มีสิทธิ์เข้าถึงหน้านี้");
-        const [u, r] = await Promise.all([
-          usersResponse.json(),
-          rolesResponse.json(),
-        ]);
-        setUsers(u);
-        setRoles(r);
-      })
-      .catch((e) => setError(e.message));
-  }, []);
-  const getRoleIds = (user: User) =>
-    user.roles?.map((r) => r.id) || user.userRoles?.map((r) => r.role.id) || [];
-  const updateRoles = async (id: string, roleIds: string[]) => {
-    const r = await fetch(`/api/users/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ roleIds }),
-    });
-    if (!r.ok) {
-      const data = await r.json();
-      setError(data.message);
-      return;
-    }
-    const updated = await r.json();
-    setUsers((items) => items.map((user) => (user.id === id ? updated : user)));
-    setMessage("บันทึกบทบาทผู้ใช้งานเรียบร้อยแล้ว");
-  };
-  return (
-    <AppShell active="users">
-      <Container maxWidth="lg" sx={{ py: 5 }}>
-        {error ? (
-          <Alert severity="error">{error}</Alert>
-        ) : (
-          <>
-            <Stack direction="row" justifyContent="space-between" mb={3}>
-              <Box>
-                <Typography className="font-display" variant="h4">
-                  จัดการผู้ใช้งาน
-                </Typography>
-                <Typography color="text.secondary">
-                  กำหนดบทบาทจากฐานข้อมูลโดยตรง
-                </Typography>
-              </Box>
-              <Button variant="contained">เพิ่มผู้ใช้งาน</Button>
-            </Stack>
-            <Paper variant="outlined" sx={{ p: 2 }}>
-              {users.map((user) => (
-                <Stack
-                  key={user.id}
-                  direction={{ xs: "column", sm: "row" }}
-                  spacing={2}
-                  justifyContent="space-between"
-                  alignItems={{ sm: "center" }}
-                  sx={{ p: 2, borderBottom: "1px solid #f0f1f5" }}
-                >
-                  <Box>
-                    <Typography fontWeight={700}>{user.name}</Typography>
-                    <Typography color="text.secondary" fontSize={13}>
-                      {user.email}
-                    </Typography>
-                  </Box>
-                  <Stack direction="row" spacing={1} alignItems="center">
-                    <Chip
-                      label={user.isActive ? "ใช้งานอยู่" : "ปิดใช้งาน"}
-                      size="small"
-                      color={user.isActive ? "success" : "default"}
-                    />
-                    <Select
-                      multiple
-                      size="small"
-                      value={getRoleIds(user)}
-                      displayEmpty
-                      renderValue={(selected) =>
-                        `${(selected as string[]).length} บทบาท`
-                      }
-                      onChange={(e) =>
-                        updateRoles(user.id, e.target.value as string[])
-                      }
-                      sx={{ minWidth: 190 }}
-                    >
-                      {roles.map((role) => (
-                        <MenuItem value={role.id} key={role.id}>
-                          {role.name}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </Stack>
-                </Stack>
-              ))}
-            </Paper>
-          </>
-        )}
-      </Container>
-      <Snackbar
-        open={!!message}
-        autoHideDuration={2500}
-        onClose={() => setMessage("")}
-      >
-        <Alert severity="success">{message}</Alert>
-      </Snackbar>
-    </AppShell>
-  );
+  const [users, setUsers] = useState<User[]>([]), [roles, setRoles] = useState<Role[]>([]), [q, setQ] = useState(""), [error, setError] = useState(""), [message, setMessage] = useState(""), [open, setOpen] = useState(false), [form, setForm] = useState(empty), [saving, setSaving] = useState(false);
+  const load = () => Promise.all([fetch("/api/users"), fetch("/api/roles")]).then(async ([u, r]) => { if (!u.ok || !r.ok) throw new Error("ไม่สามารถโหลดข้อมูลผู้ใช้งานได้"); setUsers(await u.json()); setRoles(await r.json()); }).catch(e => setError(e.message));
+  useEffect(() => { load(); }, []);
+  const roleIds = (u: User) => u.roles?.map(r => r.id) || u.userRoles?.map(r => r.role.id) || [];
+  const update = async (id: string, ids: string[], isActive?: boolean) => { const r = await fetch(`/api/users/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ roleIds: ids, isActive }) }); if (!r.ok) { setError((await r.json()).message); return; } const next = await r.json(); setUsers(items => items.map(u => u.id === id ? next : u)); setMessage("บันทึกการเปลี่ยนแปลงแล้ว"); };
+  const create = async () => { setSaving(true); const r = await fetch("/api/users", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) }); if (!r.ok) { setError((await r.json()).message || "เพิ่มผู้ใช้งานไม่สำเร็จ"); setSaving(false); return; } setOpen(false); setForm(empty); setSaving(false); setMessage("เพิ่มผู้ใช้งานสำเร็จ"); load(); };
+  const filtered = useMemo(() => users.filter(u => `${u.name} ${u.email}`.toLowerCase().includes(q.toLowerCase())), [users, q]);
+  return <AppShell active="users"><Container maxWidth="lg" sx={{ py: { xs: 3, md: 5 } }}><Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ xs: "stretch", sm: "center" }} spacing={2} mb={3}><Stack direction="row" spacing={1.2} alignItems="center"><Box sx={{ width: 44, height: 44, borderRadius: 2.5, bgcolor: "#fff0eb", color: "#eb806d", display: "grid", placeItems: "center" }}><Icon icon="solar:user-id-bold-duotone" width={25} /></Box><Box><Typography className="font-display" variant="h4" fontWeight={750}>จัดการผู้ใช้งาน</Typography><Typography variant="body2" color="text.secondary">ดูแลสมาชิก บทบาท และสิทธิ์การเข้าถึงระบบ</Typography></Box></Stack><Button startIcon={<Icon icon="solar:user-plus-bold" width={20} />} variant="contained" onClick={() => setOpen(true)}>เพิ่มผู้ใช้งาน</Button></Stack><Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} mb={2}><Paper sx={{ flex: 1, p: 2, border: "1px solid #e7edf3", borderRadius: 3 }}><Typography variant="caption" color="text.secondary">ผู้ใช้งานทั้งหมด</Typography><Typography variant="h5" fontWeight={800}>{users.length}</Typography></Paper><Paper sx={{ flex: 1, p: 2, border: "1px solid #e7edf3", borderRadius: 3 }}><Typography variant="caption" color="text.secondary">กำลังใช้งาน</Typography><Typography variant="h5" fontWeight={800} color="success.main">{users.filter(u => u.isActive).length}</Typography></Paper><Paper sx={{ flex: 1, p: 2, border: "1px solid #e7edf3", borderRadius: 3 }}><Typography variant="caption" color="text.secondary">ผู้ดูแลระบบ</Typography><Typography variant="h5" fontWeight={800} color="primary.main">{users.filter(u => u.role === "ADMIN").length}</Typography></Paper></Stack><Paper elevation={0} sx={{ p: 1.5, mb: 2, border: "1px solid #e7edf3", borderRadius: 3 }}><TextField fullWidth size="small" placeholder="ค้นหาชื่อหรืออีเมล..." value={q} onChange={e => setQ(e.target.value)} InputProps={{ startAdornment: <InputAdornment position="start"><Icon icon="solar:magnifer-linear" width={20} color="#78819a" /></InputAdornment> }} /></Paper>{error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError("")}>{error}</Alert>}<Stack spacing={1.5}>{filtered.map(user => <Paper key={user.id} elevation={0} sx={{ p: { xs: 1.5, sm: 2 }, border: "1px solid #e7edf3", borderRadius: 3, transition: "all .2s", "&:hover": { borderColor: "#c9cffc", boxShadow: "0 8px 24px rgba(40,50,120,.08)" } }}><Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems={{ sm: "center" }} justifyContent="space-between"><Stack direction="row" spacing={1.5} alignItems="center"><Avatar sx={{ bgcolor: user.role === "ADMIN" ? "#e8eaff" : "#fff0eb", color: user.role === "ADMIN" ? "#5661d9" : "#eb806d", fontWeight: 800 }}>{user.name.charAt(0).toUpperCase()}</Avatar><Box><Typography fontWeight={750}>{user.name}</Typography><Typography variant="body2" color="text.secondary">{user.email}</Typography></Box></Stack><Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ sm: "center" }}><Chip icon={<Icon icon={user.isActive ? "solar:check-circle-bold" : "solar:close-circle-bold"} width={16} />} label={user.isActive ? "กำลังใช้งาน" : "ปิดใช้งาน"} size="small" color={user.isActive ? "success" : "default"} /><Select multiple size="small" value={roleIds(user)} displayEmpty renderValue={s => `${(s as string[]).length} บทบาท`} onChange={e => update(user.id, e.target.value as string[])} sx={{ minWidth: { xs: "100%", sm: 170 }, borderRadius: 2 }}>{roles.map(role => <MenuItem value={role.id} key={role.id}>{role.name}</MenuItem>)}</Select><Button size="small" color={user.isActive ? "error" : "success"} onClick={() => update(user.id, roleIds(user), !user.isActive)}>{user.isActive ? "ปิดใช้งาน" : "เปิดใช้งาน"}</Button></Stack></Stack></Paper>)}</Stack>{filtered.length === 0 && <Paper sx={{ p: 6, textAlign: "center", border: "1px dashed #ccd2e4", borderRadius: 3 }}><Icon icon="solar:user-search-bold-duotone" width={42} color="#aab2c9" /><Typography mt={1} color="text.secondary">ไม่พบผู้ใช้งาน</Typography></Paper>}</Container>
+    <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="sm" PaperProps={{ sx: { borderRadius: 3 } }}><DialogTitle><Stack direction="row" spacing={1.2} alignItems="center"><Icon icon="solar:user-plus-bold-duotone" width={26} color="#5661d9" /><Box><Typography fontWeight={800}>เพิ่มผู้ใช้งาน</Typography><Typography variant="body2" color="text.secondary">สร้างบัญชีใหม่สำหรับทีมงาน</Typography></Box></Stack></DialogTitle><DialogContent><Stack spacing={2} mt={1}><TextField label="ชื่อ-นามสกุล" required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /><TextField label="อีเมล" type="email" required value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} /><TextField label="รหัสผ่าน" type="password" required value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} /><TextField select label="บทบาทเริ่มต้น" value={form.role} onChange={e => setForm({ ...form, role: e.target.value })}><MenuItem value="STAFF">Staff</MenuItem><MenuItem value="ADMIN">Admin</MenuItem></TextField></Stack></DialogContent><DialogActions sx={{ px: 3, pb: 2 }}><Button onClick={() => setOpen(false)}>ยกเลิก</Button><Button variant="contained" onClick={create} disabled={saving}>{saving ? "กำลังสร้าง..." : "สร้างผู้ใช้งาน"}</Button></DialogActions></Dialog><Snackbar open={!!message} autoHideDuration={2500} onClose={() => setMessage("")}><Alert severity="success">{message}</Alert></Snackbar></AppShell>;
 }

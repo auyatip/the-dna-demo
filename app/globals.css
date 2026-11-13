@@ -5,6 +5,8 @@
   --line: #e8eaf0;
   --bg: #f7f8fb;
   --primary: #5661d9;
+  --lavender: #eef0ff;
+  --peach: #fff0eb;
 }
 * {
   box-sizing: border-box;
@@ -14,6 +16,7 @@ body {
   background: var(--bg);
   color: var(--ink);
   font-family: "DM Sans", sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 .font-display {
   font-family: "Space Grotesk", sans-serif;
@@ -22,3 +25,5 @@ body {
   min-height: 100vh;
   background: var(--bg);
 }
+button, a { -webkit-tap-highlight-color: transparent; }
+::selection { background: #dfe2ff; color: #202743; }

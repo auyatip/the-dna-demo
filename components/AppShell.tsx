@@ -14,6 +14,7 @@ import {
   Typography,
 } from "@mui/material";
 import Link from "next/link";
+import { Icon } from "@iconify/react";
 
 type MenuItem = {
   id: string;
@@ -38,13 +39,13 @@ const menuItems: MenuItem[] = [
     href: "/students",
     permission: "students:read",
   },
-  {
-    id: "documents",
-    icon: "▣",
-    label: "เอกสาร",
-    href: "/students",
-    permission: "documents:read",
-  },
+  // {
+  //   id: "documents",
+  //   icon: "▣",
+  //   label: "เอกสาร",
+  //   href: "/students",
+  //   permission: "documents:read",
+  // },
   {
     id: "users",
     icon: "♙",
@@ -71,9 +72,22 @@ export default function AppShell({
   const [permissions, setPermissions] = useState<string[] | null>(null);
 
   useEffect(() => {
-    fetch("/api/me/permissions")
+    const cached = sessionStorage.getItem("dna_permissions");
+    if (cached) {
+      try {
+        setPermissions(JSON.parse(cached));
+        return;
+      } catch {
+        sessionStorage.removeItem("dna_permissions");
+      }
+    }
+    fetch("/api/me/permissions", { cache: "no-store" })
       .then((response) => (response.ok ? response.json() : { permissions: [] }))
-      .then((data) => setPermissions(data.permissions));
+      .then((data) => {
+        const nextPermissions = data.permissions || [];
+        sessionStorage.setItem("dna_permissions", JSON.stringify(nextPermissions));
+        setPermissions(nextPermissions);
+      });
   }, []);
 
   const visibleItems = menuItems.filter(
@@ -86,6 +100,7 @@ export default function AppShell({
       <Drawer
         variant="permanent"
         sx={{
+          display: { xs: "none", md: "block" },
           width: 244,
           "& .MuiDrawer-paper": {
             width: 244,
@@ -123,7 +138,7 @@ export default function AppShell({
               selected={active === item.id}
               sx={{ borderRadius: 2, mb: 0.5 }}
             >
-              <ListItemIcon sx={{ minWidth: 34 }}>{item.icon}</ListItemIcon>
+              <ListItemIcon sx={{ minWidth: 34, color: active === item.id ? "primary.main" : "text.secondary" }}><Icon icon={item.id === "dashboard" ? "solar:widget-5-bold-duotone" : item.id === "students" ? "solar:users-group-rounded-bold-duotone" : item.id === "documents" ? "solar:folder-with-files-bold-duotone" : item.id === "users" ? "solar:user-id-bold-duotone" : "solar:shield-check-bold-duotone"} width={21} /></ListItemIcon>
               <ListItemText primary={item.label} />
             </ListItemButton>
           ))}
@@ -137,7 +152,7 @@ export default function AppShell({
           </Typography>
         </Box>
       </Drawer>
-      <Box component="main" sx={{ flex: 1 }}>
+      <Box component="main" sx={{ flex: 1, minWidth: 0, pb: { xs: 8, md: 0 } }}>
         <Box
           sx={{
             height: 72,
@@ -146,12 +161,12 @@ export default function AppShell({
             display: "flex",
             alignItems: "center",
             justifyContent: "flex-end",
-            px: { xs: 3, md: 5 },
+            px: { xs: 2, md: 5 },
           }}
         >
           <Stack direction="row" spacing={2} alignItems="center">
             <Typography fontSize={13}>Alex Davis</Typography>
-            <form action="/api/auth/logout" method="post">
+            <form action="/api/auth/logout" method="post" onSubmit={() => sessionStorage.removeItem("dna_permissions")}>
               <Button type="submit" size="small">
                 ออกจากระบบ
               </Button>
@@ -159,6 +174,9 @@ export default function AppShell({
           </Stack>
         </Box>
         {children}
+        <Box sx={{ display: { xs: "flex", md: "none" }, position: "fixed", zIndex: 1200, bottom: 12, left: 12, right: 12, p: .75, borderRadius: 3, bgcolor: "rgba(255,255,255,.94)", backdropFilter: "blur(14px)", boxShadow: "0 12px 30px rgba(32,39,67,.16)", justifyContent: "space-around" }}>
+          {visibleItems.slice(0, 4).map(item => <Button key={item.id} component={Link} href={item.href} sx={{ minWidth: 0, p: 1, color: active === item.id ? "primary.main" : "text.secondary", flexDirection: "column", gap: .25, fontSize: 10 }}><Icon icon={item.id === "dashboard" ? "solar:widget-5-bold-duotone" : item.id === "students" ? "solar:users-group-rounded-bold-duotone" : item.id === "documents" ? "solar:folder-with-files-bold-duotone" : "solar:user-id-bold-duotone"} width={22} />{item.label}</Button>)}
+        </Box>
       </Box>
     </Box>
   );

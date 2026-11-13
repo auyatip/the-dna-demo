@@ -101,23 +101,18 @@ export default async function DashboardPage() {
           </Box>
           <Stack direction="row" spacing={1.25}>
             <Button
-              variant="outlined"
-              href="/students"
-              sx={{ borderColor: "#E2E8F0", color: "#334155", bgcolor: "#fff" }}
-            >
-              View students
-            </Button>
-            <Button
               variant="contained"
-              href="/students/new"
-              sx={{
+              href="/students"
+                   sx={{
                 bgcolor: "#4F46E5",
                 boxShadow: "none",
                 "&:hover": { bgcolor: "#4338CA", boxShadow: "none" },
+                textColor: "#fff",
               }}
             >
-              + Add student
+              View students
             </Button>
+           
           </Stack>
         </Stack>
 

@@ -1,124 +1,37 @@
 "use client";
-import { useEffect, useState } from "react";
-import {
-  Box,
-  Button,
-  Chip,
-  Container,
-  MenuItem,
-  Stack,
-  TextField,
-  Typography,
-} from "@mui/material";
+import { useCallback, useEffect, useState } from "react";
+import { Alert, Box, Button, Chip, Container, Dialog, DialogActions, DialogContent, DialogTitle, InputAdornment, MenuItem, Paper, Stack, TextField, Typography } from "@mui/material";
 import { DataGrid, GridColDef } from "@mui/x-data-grid";
+import { Icon } from "@iconify/react";
 import AppShell from "@/components/AppShell";
-import Link from "next/link";
-type Student = {
-  id: string;
-  studentCode: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  program: string;
-  status: string;
-};
-const columns: GridColDef<Student>[] = [
-  { field: "studentCode", headerName: "รหัสนักเรียน", flex: 1 },
-  {
-    field: "name",
-    headerName: "นักเรียน",
-    flex: 1.2,
-    valueGetter: (_, row) => `${row.firstName} ${row.lastName}`,
-  },
-  { field: "email", headerName: "อีเมล", flex: 1.5 },
-  { field: "program", headerName: "หลักสูตร", flex: 1.4 },
-  {
-    field: "status",
-    headerName: "สถานะ",
-    flex: 0.8,
-    renderCell: ({ value }) => (
-      <Chip
-        label={value}
-        size="small"
-        color={
-          value === "ACTIVE"
-            ? "success"
-            : value === "PENDING"
-              ? "warning"
-              : "info"
-        }
-      />
-    ),
-  },
-  {
-    field: "actions",
-    headerName: "",
-    sortable: false,
-    renderCell: ({ row }) => (
-      <Button component={Link} href={`/students/${row.id}`}>
-        ดูรายละเอียด
-      </Button>
-    ),
-  },
-];
+
+type Student = { id: string; studentCode: string; firstName: string; lastName: string; email: string; phone?: string | null; nationality?: string | null; dateOfBirth?: string | null; program: string; enrollmentDate: string; status: string; notes?: string | null };
+type Form = Omit<Student, "id">;
+const blank: Form = { studentCode: "", firstName: "", lastName: "", email: "", phone: "", nationality: "", dateOfBirth: "", program: "", enrollmentDate: new Date().toISOString().slice(0, 10), status: "PENDING", notes: "" };
+
 export default function StudentsPage() {
-  const [rows, setRows] = useState<Student[]>([]);
-  const [q, setQ] = useState("");
-  const [status, setStatus] = useState("");
-  useEffect(() => {
-    fetch(`/api/students?q=${encodeURIComponent(q)}&status=${status}`)
-      .then((r) => r.json())
-      .then(setRows);
-  }, [q, status]);
-  return (
-    <AppShell active="students">
-      <Container maxWidth="xl" sx={{ py: 5 }}>
-        <Stack direction="row" justifyContent="space-between" mb={3}>
-          <Box>
-            <Typography className="font-display" variant="h4">
-              นักเรียน
-            </Typography>
-            <Typography color="text.secondary">
-              ค้นหา กรอง และจัดการข้อมูลนักเรียน
-            </Typography>
-          </Box>
-          <Button variant="contained" href="/students/new">
-            เพิ่มนักเรียน
-          </Button>
-        </Stack>
-        <Stack direction="row" spacing={2} mb={2}>
-          <TextField
-            size="small"
-            placeholder="ค้นหาชื่อหรือรหัสนักเรียน"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-          />
-          <TextField
-            select
-            size="small"
-            label="สถานะ"
-            value={status}
-            onChange={(e) => setStatus(e.target.value)}
-            sx={{ minWidth: 160 }}
-          >
-            <MenuItem value="">ทั้งหมด</MenuItem>
-            <MenuItem value="ACTIVE">กำลังศึกษา</MenuItem>
-            <MenuItem value="PENDING">รอดำเนินการ</MenuItem>
-            <MenuItem value="COMPLETED">สำเร็จการศึกษา</MenuItem>
-          </TextField>
-        </Stack>
-        <Box sx={{ height: 560, bgcolor: "white" }}>
-          <DataGrid
-            rows={rows}
-            columns={columns}
-            getRowId={(r) => r.id}
-            pageSizeOptions={[5, 10, 20]}
-            initialState={{
-              pagination: { paginationModel: { pageSize: 10, page: 0 } },
-            }}
-          />
-        </Box>
-      </Container>
-    </AppShell>
-  );
+  const [rows, setRows] = useState<Student[]>([]), [q, setQ] = useState(""), [status, setStatus] = useState("");
+  const [open, setOpen] = useState(false), [editing, setEditing] = useState<Student | null>(null), [form, setForm] = useState<Form>(blank), [confirm, setConfirm] = useState<Student | null>(null), [error, setError] = useState(""), [saving, setSaving] = useState(false);
+  const load = useCallback((query = q) => fetch(`/api/students?q=${encodeURIComponent(query)}&status=${status}`).then(r => r.json()).then(setRows), [q, status]);
+  useEffect(() => { const timer = window.setTimeout(() => load(q), 350); return () => window.clearTimeout(timer); }, [q, status, load]);
+  const set = (key: keyof Form, value: string) => setForm(x => ({ ...x, [key]: value }));
+  const create = () => { setEditing(null); setForm(blank); setError(""); setOpen(true); };
+  const edit = (s: Student) => { setEditing(s); setForm({ ...blank, ...s, dateOfBirth: s.dateOfBirth?.slice(0, 10) || "", enrollmentDate: s.enrollmentDate.slice(0, 10) }); setError(""); setOpen(true); };
+  const save = async () => { setSaving(true); const r = await fetch(editing ? `/api/students/${editing.id}` : "/api/students", { method: editing ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) }); if (!r.ok) { setError((await r.json().catch(() => ({}))).message || "บันทึกไม่สำเร็จ"); setSaving(false); return; } setOpen(false); setSaving(false); load(); };
+  const remove = async () => { if (!confirm) return; await fetch(`/api/students/${confirm.id}`, { method: "DELETE" }); setConfirm(null); load(); };
+  const columns: GridColDef<Student>[] = [
+    { field: "studentCode", headerName: "รหัสนักเรียน", flex: 1 },
+    { field: "name", headerName: "นักเรียน", flex: 1.2, valueGetter: (_, r) => `${r.firstName} ${r.lastName}` },
+    { field: "email", headerName: "อีเมล", flex: 1.5 }, { field: "program", headerName: "หลักสูตร", flex: 1.4 },
+    { field: "status", headerName: "สถานะ", flex: .8, renderCell: ({ value }) => <Chip label={value} size="small" color={value === "ACTIVE" ? "success" : value === "PENDING" ? "warning" : "info"} /> },
+    { field: "actions", headerName: "จัดการ", sortable: false, flex: 1.2, renderCell: ({ row }) => <Stack direction="row"><Button size="small" onClick={() => edit(row)}>แก้ไข</Button><Button size="small" color="error" onClick={() => setConfirm(row)}>ลบ</Button></Stack> },
+  ];
+  const fields: [keyof Form, string, boolean, string][] = [["studentCode", "รหัสนักเรียน", true, "text"], ["firstName", "ชื่อ", true, "text"], ["lastName", "นามสกุล", true, "text"], ["email", "อีเมล", true, "email"], ["phone", "เบอร์โทรศัพท์", false, "text"], ["nationality", "สัญชาติ", false, "text"], ["program", "หลักสูตร", true, "text"], ["enrollmentDate", "วันที่ลงทะเบียน", true, "date"], ["dateOfBirth", "วันเกิด", false, "date"]];
+  return <AppShell active="students"><Container maxWidth="xl" sx={{ py: { xs: 3, md: 5 } }}><Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ xs: "stretch", sm: "center" }} spacing={2} mb={3}><Box><Stack direction="row" spacing={1.2} alignItems="center"><Box sx={{ width: 44, height: 44, borderRadius: 2.5, bgcolor: "#e8f1f8", color: "#20639b", display: "grid", placeItems: "center" }}><Icon icon="solar:users-group-rounded-bold" width={25} /></Box><Box><Typography className="font-display" variant="h4" fontWeight={750}>นักเรียน</Typography><Typography color="text.secondary" variant="body2">จัดการข้อมูลนักเรียนและสถานะการศึกษา</Typography></Box></Stack></Box><Button startIcon={<Icon icon="solar:add-circle-bold" width={21} />} variant="contained" onClick={create} sx={{ borderRadius: 2, px: 2.5, py: 1.2, boxShadow: "0 8px 20px rgba(32,99,155,.2)" }}>เพิ่มนักเรียน</Button></Stack><Paper elevation={0} sx={{ p: { xs: 1.5, md: 2 }, mb: 2, border: "1px solid #e7edf3", borderRadius: 3 }}><Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}><TextField fullWidth size="small" placeholder="ค้นหาชื่อหรือรหัสนักเรียน..." value={q} onChange={e => setQ(e.target.value)} InputProps={{ startAdornment: <InputAdornment position="start"><Icon icon="solar:magnifer-linear" width={20} color="#64748b" /></InputAdornment> }} /><TextField select size="small" label="สถานะ" value={status} onChange={e => setStatus(e.target.value)} sx={{ minWidth: { sm: 190 } }}><MenuItem value="">ทั้งหมด</MenuItem><MenuItem value="ACTIVE">กำลังศึกษา</MenuItem><MenuItem value="PENDING">รอดำเนินการ</MenuItem><MenuItem value="COMPLETED">สำเร็จการศึกษา</MenuItem><MenuItem value="INACTIVE">ไม่ใช้งาน</MenuItem></TextField></Stack></Paper><Paper elevation={0} sx={{ height: 590, border: "1px solid #e7edf3", borderRadius: 3, overflow: "hidden", bgcolor: "white", "& .MuiDataGrid-columnHeaders": { bgcolor: "#f8fafc", borderBottom: "1px solid #e7edf3" }, "& .MuiDataGrid-row:hover": { bgcolor: "#f8fbff" }, "& .MuiDataGrid-cell:focus": { outline: "none" } }}><DataGrid rows={rows} columns={columns} getRowId={r => r.id} pageSizeOptions={[5, 10, 20]} initialState={{ pagination: { paginationModel: { pageSize: 10, page: 0 } } }} /></Paper></Container>
+    <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="md" PaperProps={{ sx: { borderRadius: 3, overflow: "hidden" } }}>
+      <DialogTitle sx={{ p: 0 }}><Box sx={{ px: 3, py: 2.5, background: "linear-gradient(135deg, #173f5f 0%, #20639b 100%)", color: "white" }}><Stack direction="row" spacing={1.5} alignItems="center"><Box sx={{ width: 42, height: 42, borderRadius: 2, display: "grid", placeItems: "center", bgcolor: "rgba(255,255,255,.16)" }}><Icon icon={editing ? "solar:user-edit-bold" : "solar:user-plus-bold"} width={25} /></Box><Box><Typography variant="h6" fontWeight={700}>{editing ? "แก้ไขข้อมูลนักเรียน" : "เพิ่มนักเรียน"}</Typography><Typography variant="body2" sx={{ opacity: .8 }}>กรอกข้อมูลให้ครบถ้วนเพื่อจัดการประวัตินักเรียน</Typography></Box></Stack></Box></DialogTitle>
+      <DialogContent sx={{ p: { xs: 2, sm: 3 }, bgcolor: "#f8fafc" }}><Stack spacing={2.5}>{error && <Alert severity="error" icon={<Icon icon="solar:danger-triangle-bold" width={22} />}>{error}</Alert>}<Box sx={{ p: { xs: 0, sm: 1 }, borderRadius: 2 }}><Stack direction="row" spacing={1} alignItems="center" mb={1.5}><Icon icon="solar:clipboard-text-bold" color="#20639b" width={21} /><Typography fontWeight={700}>ข้อมูลหลัก</Typography></Stack><Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" }, gap: 2 }}>{fields.slice(0, 4).map(([key, label, required, type]) => <TextField key={key} label={label} required={required} type={type} fullWidth sx={{ bgcolor: "white" }} value={form[key] || ""} onChange={e => set(key, e.target.value)} InputLabelProps={type === "date" ? { shrink: true } : undefined} />)}</Box></Box><Box sx={{ p: { xs: 0, sm: 1 }, borderRadius: 2 }}><Stack direction="row" spacing={1} alignItems="center" mb={1.5}><Icon icon="solar:case-round-bold" color="#20639b" width={21} /><Typography fontWeight={700}>ข้อมูลการศึกษาและการติดต่อ</Typography></Stack><Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" }, gap: 2 }}>{fields.slice(4).map(([key, label, required, type]) => <TextField key={key} label={label} required={required} type={type} fullWidth sx={{ bgcolor: "white" }} value={form[key] || ""} onChange={e => set(key, e.target.value)} InputLabelProps={type === "date" ? { shrink: true } : undefined} />)}</Box></Box><Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2 }}><TextField select label="สถานะ" value={form.status} onChange={e => set("status", e.target.value)} sx={{ bgcolor: "white" }}><MenuItem value="ACTIVE">กำลังศึกษา</MenuItem><MenuItem value="PENDING">รอดำเนินการ</MenuItem><MenuItem value="COMPLETED">สำเร็จการศึกษา</MenuItem><MenuItem value="INACTIVE">ไม่ใช้งาน</MenuItem></TextField><TextField label="หมายเหตุ" multiline minRows={2} value={form.notes || ""} onChange={e => set("notes", e.target.value)} sx={{ bgcolor: "white", gridColumn: { xs: "auto", sm: "span 1" } }} /></Box></Stack></DialogContent>
+      <DialogActions sx={{ px: 3, py: 2, bgcolor: "white", borderTop: "1px solid #e5e7eb" }}><Button startIcon={<Icon icon="solar:close-circle-linear" width={20} />} onClick={() => setOpen(false)} sx={{ color: "text.secondary" }}>ยกเลิก</Button><Button startIcon={<Icon icon="solar:check-circle-bold" width={20} />} variant="contained" onClick={save} disabled={saving} sx={{ borderRadius: 2, px: 3 }}>{saving ? "กำลังบันทึก..." : "บันทึกข้อมูล"}</Button></DialogActions>
+    </Dialog>
+    <Dialog open={!!confirm} onClose={() => setConfirm(null)} PaperProps={{ sx: { borderRadius: 3 } }}><DialogTitle><Stack direction="row" spacing={1.5} alignItems="center"><Box sx={{ width: 42, height: 42, borderRadius: "50%", bgcolor: "#fff1f2", color: "#e11d48", display: "grid", placeItems: "center" }}><Icon icon="solar:trash-bin-trash-bold" width={23} /></Box><span>ยืนยันการลบ</span></Stack></DialogTitle><DialogContent><Typography color="text.secondary">ต้องการลบข้อมูลของ <b>{confirm?.firstName} {confirm?.lastName}</b> ใช่หรือไม่?</Typography><Typography variant="body2" color="text.secondary" mt={1}>ข้อมูลจะถูกซ่อนจากรายการ แต่ยังคงอยู่ในระบบเพื่อการตรวจสอบ</Typography></DialogContent><DialogActions sx={{ px: 3, pb: 2 }}><Button onClick={() => setConfirm(null)}>ยกเลิก</Button><Button startIcon={<Icon icon="solar:trash-bin-trash-bold" width={18} />} color="error" variant="contained" onClick={remove} sx={{ borderRadius: 2 }}>ลบข้อมูล</Button></DialogActions></Dialog></AppShell>;
 }

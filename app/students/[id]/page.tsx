@@ -11,6 +11,7 @@ import {
 } from "@mui/material";
 import { prisma } from "@/lib/prisma";
 import AppShell from "@/components/AppShell";
+import { Icon } from "@iconify/react";
 export default async function StudentDetail({
   params,
 }: {
@@ -24,13 +25,13 @@ export default async function StudentDetail({
   if (!student) notFound();
   return (
     <AppShell active="students">
-      <Container maxWidth="lg" sx={{ py: 5 }}>
+      <Container maxWidth="lg" sx={{ py: { xs: 3, md: 5 }, px: { xs: 2, md: 3 } }}>
         <Typography color="text.secondary">รายละเอียดนักเรียน</Typography>
         <Stack
-          direction="row"
+          direction={{ xs: "column", sm: "row" }}
           justifyContent="space-between"
           alignItems="center"
-          mb={3}
+          mb={3} gap={2}
         >
           <Box>
             <Typography className="font-display" variant="h4">
@@ -40,14 +41,14 @@ export default async function StudentDetail({
               {student.studentCode} · {student.email}
             </Typography>
           </Box>
-          <Chip label={student.status} color="success" />
+          <Chip icon={<Icon icon="solar:check-circle-bold" width={17} />} label={student.status} color="success" sx={{ alignSelf: { xs: "flex-start", sm: "center" } }} />
         </Stack>
-        <Tabs value={0} sx={{ mb: 3 }}>
+        <Tabs value={0} variant="scrollable" allowScrollButtonsMobile sx={{ mb: 3, borderBottom: "1px solid #e9eaf1" }}>
           <Tab label="ภาพรวม" />
           <Tab label={`เอกสาร (${student.documents.length})`} />
           <Tab label="กิจกรรม" />
         </Tabs>
-        <Paper variant="outlined" sx={{ p: 3 }}>
+        <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 }, borderRadius: 3, borderColor: "#e9eaf1" }}>
           <Typography className="font-display" variant="h6">
             ภาพรวม
           </Typography>

@@ -8,6 +8,11 @@ export async function GET(request: Request) {
     const q = url.searchParams.get("q") || "";
     const status = url.searchParams.get("status");
     const students = await prisma.student.findMany({
+      select: {
+        id: true, studentCode: true, firstName: true, lastName: true,
+        email: true, phone: true, nationality: true, dateOfBirth: true,
+        program: true, enrollmentDate: true, status: true, notes: true,
+      },
       where: {
         archivedAt: null,
         ...(status ? { status: status as never } : {}),

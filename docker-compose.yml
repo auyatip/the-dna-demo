@@ -1,0 +1,16 @@
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: the-dna-demo-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: the_dna_demo
+      MYSQL_USER: demo
+      MYSQL_PASSWORD: demo
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+volumes:
+  mysql_data:

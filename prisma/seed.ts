@@ -1,0 +1,5 @@
+import { PrismaClient, StudentStatus } from '@prisma/client';
+const prisma = new PrismaClient();
+const names = ['Emma Mitchell','Jordan Smith','Lucas Wong','Amelia Morgan','Riley Kim','Noah Wilson','Sophia Chen','Oliver Brown','Mia Taylor','Ethan Davis','Ava Martin','Leo Anderson','Isla Thompson','Mason White','Grace Hall','Henry Clark','Ella Lewis','James Walker','Lily Young','Jack King'];
+async function main() { await prisma.student.deleteMany(); for (let i=0;i<names.length;i++) { const [firstName,lastName] = names[i].split(' '); await prisma.student.create({ data: { studentCode: `STU-2024-${String(i+1).padStart(3,'0')}`, firstName, lastName, email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}@example.demo`, phone: `+66 80 000 ${String(i+1).padStart(4,'0')}`, nationality: i%2?'Thailand':'United Kingdom', program: ['Digital Product Design','Business & Innovation','Computer Science'][i%3], enrollmentDate: new Date('2024-01-15'), status: i%5===2?StudentStatus.PENDING:StudentStatus.ACTIVE } }); } }
+main().finally(() => prisma.$disconnect());
